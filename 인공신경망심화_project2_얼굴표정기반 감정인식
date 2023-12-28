@@ -1,0 +1,197 @@
+import numpy as np
+
+data = np.load("./train.npz")
+print(data.files)
+print(data)
+--> ['x', 'y']
+<numpy.lib.npyio.NpzFile object at 0x00000166DFF13690>
+
+x  = data['x']
+y = data['y']
+
+print(len(x))
+print(len(y))
+->
+29540
+29540
+
+import tensorflow as tf
+from tensorflow import keras
+from keras import Sequential, Input
+from keras.layers import Dense
+
+from sklearn.model_selection import train_test_split
+
+x_train, x_test, y_train, y_test = train_test_split(x ,y , test_size=0.2, random_state=42, shuffle = True)
+print(x_train.shape, y_train.shape)
+print(x_test.shape, y_test.shape)
+-> (23632, 48, 48) (23632,)
+(5908, 48, 48) (5908,)
+
+# 스케일 조정
+x_train_scaled = x_train / 255.0 #정규화_실수값으로 나눠주기
+x_test_scaled = x_test / 255.0
+
+print(x_train_scaled.shape)
+print(x_test_scaled.shape)
+-> (23632, 48, 48)
+(5908, 48, 48)
+
+from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, BatchNormalization, Dropout
+
+model = Sequential()
+model.add(Input(shape=(48, 48, 1)))
+
+model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(48, 48, 1)))
+model.add(MaxPooling2D((2, 2)))
+
+model.add(Conv2D(64, (3, 3), activation='relu'))
+model.add(MaxPooling2D((2, 2)))
+
+model.add(Conv2D(128, (3, 3), activation='relu'))
+model.add(MaxPooling2D((2, 2)))
+
+
+model.add(Flatten())
+
+model.add(Dense(64, activation='relu'))
+model.add(BatchNormalization())  # 배치 정규화 추가
+model.add(Dense(32, activation='relu'))
+
+model.add(Dense(5, activation='softmax'))
+model.summary()
+
+-> Model: "sequential"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ conv2d (Conv2D)             (None, 46, 46, 32)        320       
+                                                                 
+ max_pooling2d (MaxPooling2  (None, 23, 23, 32)        0         
+ D)                                                              
+                                                                 
+ conv2d_1 (Conv2D)           (None, 21, 21, 64)        18496     
+                                                                 
+ max_pooling2d_1 (MaxPoolin  (None, 10, 10, 64)        0         
+ g2D)                                                            
+                                                                 
+ conv2d_2 (Conv2D)           (None, 8, 8, 128)         73856     
+                                                                 
+ max_pooling2d_2 (MaxPoolin  (None, 4, 4, 128)         0         
+ g2D)                                                            
+                                                                 
+ flatten (Flatten)           (None, 2048)              0         
+                                                                 
+ dense (Dense)               (None, 64)                131136    
+                                                                 
+ batch_normalization (Batch  (None, 64)                256       
+ Normalization)                                                  
+                                                                 
+ dense_1 (Dense)             (None, 32)                2080      
+                                                                 
+ dense_2 (Dense)             (None, 5)                 165       
+                                                                 
+=================================================================
+Total params: 226309 (884.02 KB)
+Trainable params: 226181 (883.52 KB)
+Non-trainable params: 128 (512.00 Byte)
+_________________________________________________________________
+
+model.compile(loss = 'sparse_categorical_crossentropy',
+              optimizer = 'adam',
+              metrics = ['accuracy'])
+
+model.fit(x_train_scaled, y_train, verbose=2, epochs=30, batch_size=128)
+
+# Early Stopping 콜백 추가
+from keras.callbacks import EarlyStopping
+early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+
+# 모델 컴파일
+from keras.optimizers import Adam
+model.compile(optimizer=Adam(learning_rate=0.0001), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# 모델 훈련
+model.fit(x_train_scaled, y_train, epochs=50, batch_size=128, validation_split=0.2, callbacks=[early_stopping])
+Epoch 1/50
+148/148 [==============================] - 64s 413ms/step - loss: 1.5193 - accuracy: 0.3306 - val_loss: 1.5826 - val_accuracy: 0.2907
+...
+Epoch 19/50
+143/148 [===========================>..] - ETA: 2s - loss: 0.4134 - accuracy: 0.8528
+
+------
+model.evaluate(x_test_scaled, y_test)
+185/185 [==============================] - 2s 9ms/step - loss: 0.7315 - accuracy: 0.7183
+[0.7314705848693848, 0.7183480262756348]
+
+
+#### TESTSET
+data2 = np.load("./test.npz")
+print(data2.files)
+print(data2)
+
+['x']
+<numpy.lib.npyio.NpzFile object at 0x0000020D20D49390>
+
+x_testset = data2['x']
+print(len(x_testset))
+7386
+
+x_testset_scaled = x_testset / 255.0
+
+print(x_testset_scaled.shape)
+(7386, 48, 48)
+
+-----
+y_pred = model.predict(x_testset_scaled)
+
+y_pred
+231/231 [==============================] - 5s 19ms/step
+array([[7.3679280e-03, 8.8631684e-01, 8.4859543e-03, 5.9769243e-02,
+        3.8060054e-02],
+       [1.5378797e-03, 1.0507130e-03, 6.0469609e-01, 8.8277631e-02,
+        3.0443767e-01],
+       [1.9906264e-02, 2.4304956e-02, 1.5425448e-02, 3.6796033e-01,
+        5.7240295e-01],
+       ...,
+       [5.7140682e-03, 9.9331194e-01, 4.4831634e-04, 2.2766927e-04,
+        2.9790588e-04],
+       [2.0602919e-02, 1.5608148e-02, 1.3331833e-01, 1.0552965e-01,
+        7.2494096e-01],
+       [1.9979179e-02, 3.7954245e-02, 2.5884074e-01, 6.1705869e-01,
+        6.6167183e-02]], dtype=float32)
+
+----
+y_pred_classes = np.argmax(y_pred, axis=1)
+print(y_pred_classes)
+[1 2 4 ... 1 4 3]
+
+
+----
+print(len(y_pred_classes))
+
+7386
+
+for i in y_pred_classes:
+    print(i)
+unique_values, counts = np.unique(y_pred_classes, return_counts=True)
+
+for value, count in zip(unique_values, counts):
+    print(f"{value}: {count}개")
+0: 1802개
+1: 1659개
+2: 918개
+3: 1898개
+4: 1109개
+
+
+
+
+
+
+
+
+
+
+
+
