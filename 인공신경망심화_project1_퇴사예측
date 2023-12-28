@@ -1,0 +1,179 @@
+import pandas as pd
+
+data = pd.read_csv("train.csv")
+
+print(data)
+  ->  Education  JoiningYear       City  PaymentTier  Age  Gender EverBenched  \
+0     Bachelors         2012  New Delhi            3   38  Female          No   
+1     Bachelors         2018  Bangalore            3   26    Male          No   
+2     Bachelors         2016       Pune            3   27    Male          No   
+3     Bachelors         2016  Bangalore            3   36    Male          No   
+4     Bachelors         2017  Bangalore            3   27    Male         Yes   
+...         ...          ...        ...          ...  ...     ...         ...   
+3717    Masters         2017  New Delhi            3   27    Male          No   
+3718  Bachelors         2016  Bangalore            3   26    Male         Yes   
+3719    Masters         2015       Pune            3   26    Male          No   
+3720  Bachelors         2014  Bangalore            3   26    Male          No   
+3721  Bachelors         2015  Bangalore            3   26    Male          No   
+
+      ExperienceInCurrentDomain  LeaveOrNot  
+0                             1           0  
+1                             4           1  
+2                             5           0  
+3                             4           0  
+4                             5           0  
+...                         ...         ...  
+3717                          5           1  
+3718                          4           0  
+3719                          4           1  
+3720                          4           0  
+3721                          4           0  
+
+[3722 rows x 9 columns]
+
+x = data.iloc[:, 0:8]
+y = data.iloc[:, 8]
+
+from sklearn.model_selection import train_test_split
+
+x_train, x_test, y_train, y_test = train_test_split(x,y,random_state=42)
+
+print(x_train.shape, y_train.shape)
+print(x_test.shape, y_test.shape)
+-> (2791, 8) (2791,)
+(931, 8) (931,)
+
+x_train
+  Education	JoiningYear	City	PaymentTier	Age	Gender	EverBenched	ExperienceInCurrentDomain
+3505	Bachelors	2014	New Delhi	3	30	Female	No	3
+48	Bachelors	2016	Pune	3	29	Male	Yes	5
+932	Bachelors	2015	Bangalore	3	28	Male	No	5
+831	Bachelors	2018	Bangalore	3	32	Male	Yes	2
+2014	Bachelors	2016	Bangalore	3	28	Female	No	1
+...	...	...	...	...	...	...	...	...
+1130	Masters	2017	New Delhi	2	28	Female	No	1
+1294	Bachelors	2013	Pune	3	32	Male	No	4
+860	Bachelors	2017	Pune	3	41	Female	No	4
+3507	Bachelors	2012	New Delhi	3	24	Female	No	2
+3174	Bachelors	2014	Bangalore	3	22	Male	No	0
+2791 rows × 8 column
+
+
+# 원핫인코딩
+x_train_dum = pd.get_dummies(x_train)
+x_test_dum = pd.get_dummies(x_test)
+
+x_train_dum
+
+
+from sklearn.preprocessing import StandardScaler
+
+ss = StandardScaler()
+
+ss.fit(x_train_dum)
+ss.fit(x_test_dum)
+
+x_train_scaled = ss.transform(x_train_dum)
+x_test_scaled = ss.transform(x_test_dum)
+x_train_scaled
+array([[-0.57096934,  0.53683542,  0.15217035, ..., -1.29136431,
+         0.31902217, -0.31902217],
+       [ 0.49644523,  0.53683542, -0.05991138, ...,  0.77437482,
+        -3.13457834,  3.13457834],
+       [-0.03726206,  0.53683542, -0.27199311, ...,  0.77437482,
+         0.31902217, -0.31902217],
+       ...,
+       [ 1.03015251,  0.53683542,  2.48506938, ..., -1.29136431,
+         0.31902217, -0.31902217],
+       [-1.6383839 ,  0.53683542, -1.12032003, ..., -1.29136431,
+         0.31902217, -0.31902217],
+       [-0.57096934,  0.53683542, -1.54448349, ...,  0.77437482,
+         0.31902217, -0.31902217]])
+
+
+import tensorflow as tf
+import numpy as np
+
+from tensorflow import keras
+from keras import Sequential, Input
+from keras.layers import Dense
+
+  model = Sequential()
+
+model.add(Input(shape=(14, ))) 
+model.add(Dense(64, activation="relu", name = "Hidden_1"))
+model.add(Dense(32, activation="relu", name = "Hidden_2"))
+model.add(Dense(1, activation="sigmoid", name = "Output"))
+
+model.summary()
+  ---
+  Model: "sequential"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ Hidden_1 (Dense)            (None, 64)                960       
+                                                                 
+ Hidden_2 (Dense)            (None, 32)                2080      
+                                                                 
+ Output (Dense)              (None, 1)                 33        
+                                                                 
+=================================================================
+Total params: 3073 (12.00 KB)
+Trainable params: 3073 (12.00 KB)
+Non-trainable params: 0 (0.00 Byte)
+_________________________________________________________________
+model.compile(loss = "binary_crossentropy",
+              optimizer = "adam",
+              metrics = ["accuracy"])
+
+history = model.fit(x_train_scaled, y_train, epochs=50, verbose=2, batch_size=14)
+
+  ...
+  Epoch 50/50
+200/200 - 0s - loss: 0.2791 - accuracy: 0.8803 - 465ms/epoch - 2ms/step
+
+x_pred = model.predict(x_test_scaled)
+print(x_pred)
+  ---30/30 [==============================] - 0s 2ms/step
+[[2.06014499e-01]
+ [1.64220527e-01]
+ [1.09616756e-01]
+ [4.43472832e-01]
+ [6.03233241e-02 ...
+
+
+  data_new = pd.read_csv("test.csv")
+
+x = data_new.iloc[:, 0:8]
+x_new = pd.get_dummies(x)
+
+ss.fit(x_new)
+x_new_scaled = ss.transform(x_new)
+
+# print(x_new_scaled)
+y_new_pred = model.predict(x_new_scaled)
+
+print(y_new_pred)
+30/30 [==============================] - 0s 2ms/step
+[[3.96520168e-01]
+ [3.07490617e-01]
+ [1.91384688e-01]
+ [1.10834436e-02]
+ [6.62477687e-02]
+ [5.94616905e-02]
+ [9.99862134e-01]
+ [3.92231464e-01].......
+
+print(len(y_new_pred))
+ 931
+
+ for i in  y_new_pred:
+    if i < 0.5: print(0)
+    else: print(1)
+ 
+
+
+
+
+
+  
